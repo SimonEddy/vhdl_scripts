@@ -64,7 +64,7 @@ cp "$path_and_file_name" $workfile
 #line_entity_start=$
 #cat $workfile
 #grep -o '^[^--]*' $workfile
-sed -ie 's/--.*$//' $workfile # remove all comments
+sed -i 's/--.*$//' $workfile # remove all comments
 
 line_entity_start="$(awk '/entity/{print NR; exit}' $workfile)" 
 sed -i "1,$((line_entity_start - 1))"d $workfile  
@@ -81,7 +81,7 @@ sed -i "${line_port}s/port/port map /" $workfile
 sed -i "/port map/s/(/(\n/" $workfile
 
 # remove all unnecessary white space 
-sed -ie '/^$/d' $workfile      
+sed -i '/^$/d' $workfile      
 sed -i 's/\t/ /g' $workfile # remove all indenting
 sed -i 's/[ ][ ][ ]*/ /g' $workfile # replace multiple spaces with single spaces
 sed -i '/^ /s/^ //' $workfile # remove spaces at start of lines
@@ -106,8 +106,11 @@ sed -i '$!s/;//' $workfile
 #sed -i "${last_comma_line}s/,/ /" $workfile
 
 # Replace entity declaration line with entity instantiation line 
-sed -i "1s/entity /i_$file_name : entity work./" $workfile
+sed -i "1s/entity//" $workfile
 sed -i "1s/is//" $workfile
+sed -i "1s/ //g" $workfile
+entity_name="$(sed -n 1p $workfile)"
+sed -i "1s/$entity_name/i_$entity_name : entity work.$entity_name/" $workfile
 
 # 4 FINISH ------------------------------------------------------------------------------
 
