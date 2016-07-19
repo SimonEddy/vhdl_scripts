@@ -91,6 +91,8 @@ sed -i "/;$/s/#/,/" $workfile # in lines finishing with ';' replace # with ,
 sed -i "s/#/ /" $workfile # in remaining line replace '#' with ' ' 
 sed -i '/=>/s/^/\t/' $workfile #replace indents for ports and generics
 
+# TODO need to make sure the ); on the final signal in port and generics is on a new line. 
+
 # Remove all occurrences of ';' except the last one.
 sed -i '$!s/;//' $workfile 
 
@@ -107,6 +109,9 @@ sed -i "1s/is//" $workfile
 sed -i "1s/ //g" $workfile
 entity_name="$(sed -n 1p $workfile)"
 sed -i "1s/$entity_name/i_$entity_name : entity work.$entity_name/" $workfile
+
+# 4 IMPROVEMENTS -----------------------------------------------------------------------
+# Make sure tabs all align
 
 # 4 FINISH ------------------------------------------------------------------------------
 
