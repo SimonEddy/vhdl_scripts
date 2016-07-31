@@ -63,45 +63,12 @@ workfile=$"./$file_name.entity"
 cp "$path_and_file_name" $workfile  
 sed -i 's/--.*$//' $workfile # remove all comments
 
-line_entity_start="$(awk '/entity/{print NR; exit}' $workfile)" 
+line_entity_start="$(awk '/\<entity\>/{print NR; exit}' $workfile)" 
 sed -i "1,$((line_entity_start - 1))"d $workfile  
-line_entity_end="$(awk '/end/{print NR; exit}' $workfile)" 
-sed -i "$line_entity_end,$"d $workfile  
+line_entity_end="$(awk '/\<end\>/{print NR; exit}' $workfile)" 
+sed -i "$line_entity_end,$"d $workfile #delete lines after end  
 
 # 3 TURN DECLARATION INTO INSTANTIATION ---------------------------------------------------
-
-line_generic="$(awk '/generic/{print NR; exit}' $workfile)" 
-sed -i "${line_generic}s/generic/generic map /" $workfile
-sed -i "/generic map/s/(/(\n/" $workfile
-line_port="$(awk '/port/{print NR; exit}' $workfile)" 
-sed -i "${line_port}s/port/port map /" $workfile
-sed -i "/port map/s/(/(\n/" $workfile
-
-# remove all unnecessary white space 
-sed -i '/^$/d' $workfile      
-sed -i 's/\t/ /g' $workfile # remove all indenting
-sed -i 's/  */ /g' $workfile # replace multiple spaces with single spaces
-sed -i '/^ /s/^ //' $workfile # remove spaces at start of lines
-sed -i '/ $/s/; /;/' $workfile # remove spaces at end of lines
-
-# change to instantiation syntax
-sed -i 's/));/)\n);/' $workfile 
-sed -i 's/:/\t=> # --/' $workfile 
-sed -i "/;$/s/#/,/" $workfile # in lines finishing with ';' replace # with , 
-sed -i "s/#/ /" $workfile # in remaining line replace '#' with ' ' 
-sed -i '/=>/s/^/\t/' $workfile #replace indents for ports and generics
-
-# TODO need to make sure the ); on the final signal in port and generics is on a new line. 
-
-# Remove all occurrences of ';' except the last one.
-sed -i '$!s/;//' $workfile 
-
-# Remove last occurrence of ',' in port map and generic map
-#sed -n "${line_generic, line_port}p" temp_sed_file 
-#cat temp_sed_file
-
-#last_comma="$(grep -n , $workfile | tail -1)"
-#slice=$(echo $last_comma | cut -f1 -d":")
 
 # Replace entity declaration line with entity instantiation line 
 sed -i "1s/entity//" $workfile
@@ -109,11 +76,58 @@ sed -i "1s/is//" $workfile
 sed -i "1s/ //g" $workfile
 entity_name="$(sed -n 1p $workfile)"
 sed -i "1s/$entity_name/i_$entity_name : entity work.$entity_name/" $workfile
+sed -n '1p' $workfile 
+
+# remove all unnecessary white space 
+sed -i '/^$/d' $workfile # remove blank line     
+sed -i 's/\t/ /g' $workfile # remove all indenting
+sed -i 's/  */ /g' $workfile # replace multiple spaces with single spaces
+sed -i '/^ /s/^ //' $workfile # remove spaces at start of lines
+sed -i '/ $/s/; /;/' $workfile # remove spaces at end of lines
+
+line_generic="$(awk '/\<generic\>/{print NR; exit}' $workfile)" 
+sed -i "${line_generic}s/generic/generic map /" $workfile
+
+line_port="$(awk '/port/{print NR; exit}' $workfile)" 
+sed -i "${line_port}s/port/port map /" $workfile
+
+fix_syntax()
+{
+    # change to instantiation syntax
+    sed -i "1s/(/(\n/" $1
+    sed -i '$s/);/\n);/' $1 
+    sed -i '/^$/d' $1 # remove blank line if the above created one.     
+    sed -i 's/,/\t=> ,\n/' $1
+    sed -i 's/:/\t=> # --/' $1 
+    sed -i "/;$/s/#/,/" $1 # in lines finishing with ';' replace # with , 
+    sed -i "s/#/ /" $1 # in remaining line replace '#' with ' ' 
+    sed -i 's/;//' $1 #Remove all occurrences of ';' 
+    
+    sed -i 's/^ //g' $1 # remove spaces at start of lines
+    sed -i '/=>/s/^/\t/' $1 #replace indents for ports and generics
+}
+
+mapfile=$"./mapfile.entity"
+total_lines=$(wc -l < "$workfile")
+
+if [ -n "$line_generic" ] 
+then
+    #pull out generic declaration and put it in mapfile
+    cat $workfile | tail $((line_generic - total_lines - 1)) | head $((line_generic - line_port)) > $mapfile
+    #sed -n "${line_generic, line_port}p" temp_sed_file 
+    fix_syntax $mapfile
+    cat $mapfile
+fi
+
+#pull out port declaration and put it in mapfile
+cat $workfile | tail $((line_port - total_lines - 1)) > $mapfile
+fix_syntax $mapfile
+sed -i '$s/)/);/' $mapfile  #replace the last ';' in the port map
+cat $mapfile
 
 # 4 IMPROVEMENTS -----------------------------------------------------------------------
-# Make sure tabs all align
+    # Make sure tabs all align
 
 # 4 FINISH ------------------------------------------------------------------------------
-
-cat $workfile
+rm $mapfile
 rm $workfile
